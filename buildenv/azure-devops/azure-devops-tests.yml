@@ -1,0 +1,146 @@
+name: Test-OpenJDK11-$(Year:YYYY).$(Month).0.$(BuildID)
+
+# This pipeline is triggered externally.
+trigger: none
+
+resources:
+  containers:
+  - container: 'linux_jdk_build'
+    image: 'junipercontainerregistry.azurecr.io/juniper-ubuntu-buildagent-image'
+    endpoint: 'juniper-container-registry'
+
+variables:
+  JUNIPER_TEST_REPO: 'https://ms-juniper@dev.azure.com/ms-juniper/Juniper/_git/adopt-test'
+  JUNIPER_TEST_BRANCH: 'juniper'
+  OPENJ9_REPO: 'https://ms-juniper@dev.azure.com/ms-juniper/Juniper/_git/openj9'
+  # Variables that affect the test run:
+  BUILD_LIST: 'openjdk_regression'
+  TARGET: 'sanity.openjdk'
+  JDK_IMPL: 'hotspot'
+  PERF_ROOT: '$(Agent.BuildDirectory)/s/benchmarks' # this was ws/../../benchmarks, why? Is it important?
+  WORKSPACE: '$(Agent.BuildDirectory)/s'
+  JAVA_VERSION: 'SE110'
+  AUTO_DETECT: 'null'
+  JDK_VERSION: 11
+  JOB_BASE_NAME: 's' # this was the folder name 'ws' locally, does this matter at all? ('s' is the dir name for sources on azdo)
+  JRE_IMAGE: '$(Agent.BuildDirectory)/s/openjdkbinary/j2jre-image'
+  JAVA_BIN: '${JAVA_HOME}/bin'
+  JVM_VERSION: 'openjdk11'
+  JCL_VERSION: 'latest'
+  TEST_JDK_HOME: '$(Agent.BuildDirectory)/s/openjdkbinary/j2sdk-image' # TODO: set this in a param to get.sh
+  SPEC: 'linux_x86-64_cmprssptrs'
+
+jobs:
+  - job: TestRun
+    timeoutInMinutes: 60
+
+    # Run under Linux, using the latest LTS release for Ubuntu or Debian
+    pool:
+      vmImage: 'ubuntu-16.04'
+    container: 'linux_jdk_build'
+
+    # All steps for our build
+    steps:
+    - script: |
+        printenv
+      displayName: 'Show all environment variables'
+      condition: eq(variables['system.debug'], 'true')
+
+    # Checkout into a subdirectory as we will be adding more to the root.
+    - checkout: none
+
+    # Set the git authorization header for subsequent git pull/clone operations...
+    - script: |
+        git config --global --add http.extraheader "AUTHORIZATION: bearer $(System.AccessToken)"
+      displayName: 'Git Add auth header'
+      
+    # Checkout the sources for the OpenJDK-11-updates repo (save the makejdk script from doing this later)
+    - script: |
+        cd "${WORKSPACE}"
+        git clone --single-branch --branch $(JUNIPER_TEST_BRANCH) --depth 1 $(JUNIPER_TEST_REPO) openjdk-tests
+      displayName: 'Clone openjdk-build:$(JUNIPER_TEST_BRANCH)'
+
+    # Download Build Artifacts from the build for OpenJDK
+    - task: DownloadPipelineArtifact@1
+      inputs:
+        buildType: 'specific'
+        project: 'Juniper'
+        pipeline: '1'
+        buildVersionToDownload: 'latestFromBranch'
+        branchName: 'refs/heads/juniper'
+        artifactName: 'jdk'
+        itemPattern: '*.tar.gz'
+        targetPath: '$(Agent.BuildDirectory)/s/openjdkbinary'
+      displayName: 'Download latest build artifacts'
+
+    # Set up the workspace by calling the 'get.sh' script in the openjdk-test repo root.
+    # It seems some of the env vars above are replicated here... perhaps we don't need both?
+    - script: |
+        cd "${WORKSPACE}/openjdk-tests"
+        ./get.sh -s $WORKSPACE -t "${WORKSPACE}/openjdk-tests" -p x64_linux -r upstream -j 11 -i hotspot --openj9_repo $(OPENJ9_REPO)
+      displayName: 'Get test dependencies'
+
+    # Get the artifacts used in the test run. These artifacts are expected to be located under
+    # the WORKSPACE/TestConfig/lib folder.
+    # TODO: For now, this is collected by automation on the AdoptOpenJDK side. Pull these down
+    #       (or otherwise procure them) during docker build time, and only pull them here if they are updated.
+    - script: |
+        wget -O "${BUILD_ARTIFACTSTAGINGDIRECTORY}/test_artifacts.zip" "https://ci.adoptopenjdk.net/job/test.getDependency/lastBuild/artifact/*zip*/archive.zip"
+        mkdir "${WORKSPACE}/TestConfig"
+        mkdir "${WORKSPACE}/TestConfig/lib"
+        unzip -j "${BUILD_ARTIFACTSTAGINGDIRECTORY}/test_artifacts.zip" -d "${WORKSPACE}/TestConfig/lib/"
+      displayName: 'Get binary build dependencies (from AdoptOpenJDK) and extract them to TestConfig/lib'
+
+    # If the verbose switch is set, show the contents of the source folders.
+    - script: |
+        echo "SHOW CONTENTS OF WORKSPACE ($WORKSPACE)"
+        ls -alR $WORKSPACE
+      displayName: 'Show test dir contents'
+      condition: eq(variables['system.debug'], 'true')
+
+    # Run the tests
+    - script: |
+        cd "${WORKSPACE}"
+        ./openjdk-tests/maketest.sh ./openjdk-tests
+      displayName: 'Run the tests'
+
+    # Archive the test log folder (Agent.BuildDirectory/s/jvmtest) into a zip
+    # file called 'jvmtest.zip'
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(Agent.BuildDirectory)/s/jvmtest'
+        includeRootFolder: true
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/jvmtest.zip'
+        replaceExistingArchive: true 
+        verbose: true
+      displayName: 'Archive test output dir'
+
+    # Archive the entire build folder to help diagnose any trouble that might
+    # arise. Only do so if the variable UploadBuildRelatedFiles == True.
+    - task: ArchiveFiles@2
+      condition: eq(variables['UploadBuildRelatedFiles'], 'true')
+      inputs:
+        rootFolderOrFile: '$(Agent.BuildDirectory)/s'
+        includeRootFolder: true
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip' 
+        replaceExistingArchive: true 
+        verbose: true
+      displayName: 'Archive build dir'
+
+    # Upload the test output log folder each time.
+    - task: PublishPipelineArtifact@0
+      inputs:
+        artifactName: 'jvmtest'
+        targetPath: '$(Build.ArtifactStagingDirectory)/jvmtest.zip'
+      displayName: 'Upload test log output files'
+
+    # Upload the entire output dir, let's see what is in there. (Only if
+    # the UploadBuildRelatedFiles=True).
+    - task: PublishPipelineArtifact@0
+      condition: eq(variables['UploadBuildRelatedFiles'], 'true')
+      inputs:
+        artifactName: 'buildfiles'
+        targetPath: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+      displayName: 'Upload build-related files'
