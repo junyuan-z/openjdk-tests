@@ -1,6 +1,8 @@
 name: Test-OpenJDK11-$(Year:YYYY).$(Month).0.$(BuildID)
 
-# This pipeline is triggered externally.
+# This build is triggered off of another build (or by release pipelines) and as such has no defined
+# trigger here. Look at the designer for this build for the triggers in effect, and in the release
+# definitions.
 trigger: none
 
 resources:
@@ -10,29 +12,56 @@ resources:
     endpoint: 'juniper-container-registry'
 
 variables:
+  # NOTE: All of the following variables are used one way or another in the build process. You can 
+  # set these using the command `export <name>=<value>` on the command line.
+
+  # The openjdk-tests repo URL to use.
   JUNIPER_TEST_REPO: 'https://ms-juniper@dev.azure.com/ms-juniper/Juniper/_git/adopt-test'
+  # The branch to sync to in the JUNIPER_TEST_REPO
   JUNIPER_TEST_BRANCH: 'juniper'
+  # The URL to the OpenJ9 Git repo
   OPENJ9_REPO: 'https://ms-juniper@dev.azure.com/ms-juniper/Juniper/_git/openj9'
-  # Variables that affect the test run:
-  BUILD_LIST: 'openjdk_regression'
+  ### Environment variables that affect the test run specifically:
+  # BUILD_LIST: Generally corresponds to all sub-folders in the adopt-test repo: external,
+  #             functional, jck, openjdk, performance, systemtest.
+  BUILD_LIST: 'openjdk'
+  # TARGET: Relates to the test target you wish to run (system, openjdk, perf, external, jck,
+  #         functional are the top-level targets, but you can also add any of the sub-targets,
+  #         including those defined in playlist.xml files in test directories)
   TARGET: 'sanity.openjdk'
+  # DISPLAY: used for running tests within the X virtual framebuffer (Xvfb) 
+  DISPLAY: :10
+  # JDK_IMPL: The JDK implementation type. Options are openj9|ibm|hotspot|sap
   JDK_IMPL: 'hotspot'
-  PERF_ROOT: '$(Agent.BuildDirectory)/s/benchmarks' # this was ws/../../benchmarks, why? Is it important?
+  # WORKSPACE: Root workspace path.
   WORKSPACE: '$(Agent.BuildDirectory)/s'
+  # PERF_ROOT: Where the benchmarks are located when running performance tests
+  PERF_ROOT: '$(WORKSPACE)/benchmarks'
+  # JAVA_VERSION: SE110 for OpenJDK11, SE120 for 12, etc...
   JAVA_VERSION: 'SE110'
-  AUTO_DETECT: 'null'
+  # JDK_VERSION: Which JDK version we are running tests for - affects test lists/skip lists.
   JDK_VERSION: 11
-  JOB_BASE_NAME: 's' # this was the folder name 'ws' locally, does this matter at all? ('s' is the dir name for sources on azdo)
-  JRE_IMAGE: '$(Agent.BuildDirectory)/s/openjdkbinary/j2jre-image'
+  # JRE_IMAGE: Where the JRE image is located. (We aren't currently using this).
+  JRE_IMAGE: '$(WORKSPACE)/openjdkbinary/j2jre-image'
+  # JAVA_BIN: Folder the java executable is found in.
   JAVA_BIN: '${JAVA_HOME}/bin'
+  # JVM_VERSION: openjdk11 for our purposes.
   JVM_VERSION: 'openjdk11'
-  JCL_VERSION: 'latest'
-  TEST_JDK_HOME: '$(Agent.BuildDirectory)/s/openjdkbinary/j2sdk-image' # TODO: set this in a param to get.sh
+  # REGRESSION_GIT_REPO: The git repo to find the openjdk_tests codebase (defaults to the
+  #                      AdoptOpenJdk/openjdk-tests on Github)
+  REGRESSION_GIT_REPO: 'https://ms-juniper@dev.azure.com/ms-juniper/Juniper/_git/jdk11u'
+  # SPEC: Specification for the OS running the tests. Affects the tests to run and the flags 
+  #       given to java executable during testing. (see configure.pl)
   SPEC: 'linux_x86-64_cmprssptrs'
+  # TEST_JDK_HOME: Where the built version of the OpenJDK is that you want to test.
+  TEST_JDK_HOME: '$(WORKSPACE)/openjdkbinary/j2sdk-image'
+  # TEST_BINARY_ASSET_URL: URI to the binary test assets we need to download and place into our
+  #                        test source tree prior to building the test suites.
+  TEST_BINARY_ASSET_URL: 'https://ci.adoptopenjdk.net/job/test.getDependency/lastBuild/artifact/*zip*/archive.zip'
 
 jobs:
   - job: TestRun
-    timeoutInMinutes: 60
+    timeoutInMinutes: 120
 
     # Run under Linux, using the latest LTS release for Ubuntu or Debian
     pool:
@@ -41,26 +70,38 @@ jobs:
 
     # All steps for our build
     steps:
+
+    # First, show all environment variables, but only if we are in verbose mode.
+    # > printenv
     - script: |
         printenv
       displayName: 'Show all environment variables'
       condition: eq(variables['system.debug'], 'true')
 
     # Checkout into a subdirectory as we will be adding more to the root.
+    # Do not check out the sources, we are going to do this manually later
+    # TODO: Alter this YAML to mount the sources after they are sync'd, see WI #21
     - checkout: none
 
     # Set the git authorization header for subsequent git pull/clone operations...
+    # <This step is unnecessary on your local workstation, can be approximated by using SSH URIs>
     - script: |
         git config --global --add http.extraheader "AUTHORIZATION: bearer $(System.AccessToken)"
       displayName: 'Git Add auth header'
       
     # Checkout the sources for the OpenJDK-11-updates repo (save the makejdk script from doing this later)
+    # > git clone --single-branch --branch juniper --depth 1 https://dev.azure.com/ms-juniper/Juniper/_git/adopt-test openjdk-tests
     - script: |
         cd "${WORKSPACE}"
         git clone --single-branch --branch $(JUNIPER_TEST_BRANCH) --depth 1 $(JUNIPER_TEST_REPO) openjdk-tests
-      displayName: 'Clone openjdk-build:$(JUNIPER_TEST_BRANCH)'
+      displayName: 'Clone $(JUNIPER_TEST_REPO):$(JUNIPER_TEST_BRANCH)'
 
     # Download Build Artifacts from the build for OpenJDK
+    # <Download the build artifacts from the latest build from CI-JDK11>
+    # > cd buildartifacts/ 
+    # > unzip path/to/downloaded/jdk.zip . # this should produce a ojdk...tar.gz file.
+    # > mkdir -p $WORKSPACE/openjdkbinary
+    # > cp ojdk*.tar.gz $WORKSPACE/openjdkbinary/
     - task: DownloadPipelineArtifact@1
       inputs:
         buildType: 'specific'
@@ -70,46 +111,84 @@ jobs:
         branchName: 'refs/heads/juniper'
         artifactName: 'jdk'
         itemPattern: '*.tar.gz'
-        targetPath: '$(Agent.BuildDirectory)/s/openjdkbinary'
+        targetPath: '$(WORKSPACE)/openjdkbinary'
       displayName: 'Download latest build artifacts'
 
+    # Until we get the bugs ironed out, let's be verbose and show the contents
+    # of the downloaded artifacts...
+    - script: |
+        echo "SHOW CONTENTS OF WORKSPACE ($WORKSPACE)"
+        ls -al $WORKSPACE
+        echo "SHOW CONTENTS OF jdkbinary ${WORKSPACE}/openjdkbinary"
+        ls -al "${WORKSPACE}/openjdkbinary"
+      displayName: 'Show Contents of dirs'
+
     # Set up the workspace by calling the 'get.sh' script in the openjdk-test repo root.
-    # It seems some of the env vars above are replicated here... perhaps we don't need both?
+    # > cd $WORKSPACE/openjdk-tests
+    # > ./get.sh -s $WORKSPACE -t $WORKSPACE/openjdk-tests -p x64_linux -r upstream -j 11 -i hotspot --openj9_repo $OPENJ9_REPO
     - script: |
         cd "${WORKSPACE}/openjdk-tests"
-        ./get.sh -s $WORKSPACE -t "${WORKSPACE}/openjdk-tests" -p x64_linux -r upstream -j 11 -i hotspot --openj9_repo $(OPENJ9_REPO)
+        ./get.sh -s $WORKSPACE -t "${WORKSPACE}/openjdk-tests" -p x64_linux -r upstream -j 11 -i hotspot --openj9_repo $OPENJ9_REPO
       displayName: 'Get test dependencies'
 
     # Get the artifacts used in the test run. These artifacts are expected to be located under
     # the WORKSPACE/TestConfig/lib folder.
     # TODO: For now, this is collected by automation on the AdoptOpenJDK side. Pull these down
-    #       (or otherwise procure them) during docker build time, and only pull them here if they are updated.
+    #       (or otherwise procure them) during docker build time.
+    # > cd $WORKSPACE
+    # > wget -O test_artifacts.zip $TEST_BINARY_ASSET_URL
+    # > mkdir $WORKSPACE/openjdk-tests/TestConfig/lib
+    # > unzip -j test_artifacts.zip -d $WORKSPACE/openjdk-tests/TestConfig/lib/
     - script: |
-        wget -O "${BUILD_ARTIFACTSTAGINGDIRECTORY}/test_artifacts.zip" "https://ci.adoptopenjdk.net/job/test.getDependency/lastBuild/artifact/*zip*/archive.zip"
-        mkdir "${WORKSPACE}/TestConfig"
-        mkdir "${WORKSPACE}/TestConfig/lib"
-        unzip -j "${BUILD_ARTIFACTSTAGINGDIRECTORY}/test_artifacts.zip" -d "${WORKSPACE}/TestConfig/lib/"
-      displayName: 'Get binary build dependencies (from AdoptOpenJDK) and extract them to TestConfig/lib'
+        wget -O "${BUILD_ARTIFACTSTAGINGDIRECTORY}/test_artifacts.zip" $TEST_BINARY_ASSET_URL
+        mkdir -p "${WORKSPACE}/openjdk-tests/TestConfig/lib" || true
+        unzip -j "${BUILD_ARTIFACTSTAGINGDIRECTORY}/test_artifacts.zip" -d "${WORKSPACE}/openjdk-tests/TestConfig/lib/"
+      displayName: 'Get binary build dependencies (from AdoptOpenJDK) and extract them to openjdk-tests/TestConfig/lib'
 
-    # If the verbose switch is set, show the contents of the source folders.
-    - script: |
-        echo "SHOW CONTENTS OF WORKSPACE ($WORKSPACE)"
-        ls -alR $WORKSPACE
-      displayName: 'Show test dir contents'
-      condition: eq(variables['system.debug'], 'true')
-
-    # Run the tests
+    # Compile the tests
+    # NOTE: The configure.pl Perl script calls into something that eventually looks online to
+    #       pull down two files: modes.xml and ottawa.csv. The endpoint doesn't seem to be
+    #       accessible to us, and it always times out - in 120 seconds (2x calls).
+    #       To speed things along, cause that fetch to fail immediately by removing the Perl
+    #       script file that performs the curl step with the timeout altogether (and just use
+    #       the locally stored modes.xml and ottawa.csv files like it would anyways).
+    # > rm $WORKSPACE/openjdk-tests/TestConfig/scripts/testKitGen/makeGenTool/modesService.pl
+    # > cd $WORKSPACE
+    # > ./openjdk-tests/maketest.sh openjdk-tests
     - script: |
         cd "${WORKSPACE}"
-        ./openjdk-tests/maketest.sh ./openjdk-tests
+        rm openjdk-tests/TestConfig/scripts/testKitGen/makeGenTool/modesService.pl || true
+        ./openjdk-tests/maketest.sh openjdk-tests
+      displayName: 'Compile the tests'
+
+    # Start the xvfb virtual buffer for running UX-based tests on headless Linux.
+    # > set -e
+    # > Xvfb $DISPLAY -ac >> /tmp/Xvfb.out 2>&1 &
+    # > disown -ar
+    - script: |
+        set -e
+        Xvfb $DISPLAY -ac >> /tmp/Xvfb.out 2>&1 &
+        disown -ar
+      displayName: 'Start xvfb'
+
+    # Run the tests
+    # TODO: The "_$TARGET" appended to the maketest.sh line is the test to run.
+    #       We will want to support multiples of these, separated by commas or something.
+    #       See the `runTest` method in the JenkinsfileBase groovy script for details...
+    #       See also, WI #22
+    # > cd $WORKSPACE
+    # > ./openjdk-tests/maketest.sh openjdk-tests "_$TARGET"
+    - script: |
+        cd "${WORKSPACE}"
+        ./openjdk-tests/maketest.sh openjdk-tests "_$TARGET"
       displayName: 'Run the tests'
 
     # Archive the test log folder (Agent.BuildDirectory/s/jvmtest) into a zip
     # file called 'jvmtest.zip'
     - task: ArchiveFiles@2
       inputs:
-        rootFolderOrFile: '$(Agent.BuildDirectory)/s/jvmtest'
-        includeRootFolder: true
+        rootFolderOrFile: '$(WORKSPACE)/jvmtest/openjdk/report'
+        includeRootFolder: false
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)/jvmtest.zip'
         replaceExistingArchive: true 
@@ -121,7 +200,7 @@ jobs:
     - task: ArchiveFiles@2
       condition: eq(variables['UploadBuildRelatedFiles'], 'true')
       inputs:
-        rootFolderOrFile: '$(Agent.BuildDirectory)/s'
+        rootFolderOrFile: '$(WORKSPACE)'
         includeRootFolder: true
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip' 

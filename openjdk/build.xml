@@ -87,12 +87,14 @@
 			</then>
 			<else>
 				<property name="jdkName" value="${openjdkGit}" />
-				<property name="regressionRepo" value="https://github.com/AdoptOpenJDK/${openjdkGit}.git" />
+				<condition property="regressionRepo" value="${env.REGRESSION_GIT_REPO}" else="https://github.com/AdoptOpenJDK/${openjdkGit}.git">
+					<isset property="env.REGRESSION_GIT_REPO" />
+				</condition>
 			</else>
 		</if>
-		<echo message="git clone --depth 1 -q ${gitReleaseTag} ${regressionRepo}" />
+		<echo message="git clone --depth 1 -q ${gitReleaseTag} ${regressionRepo} ${openjdkGit}" />
 		<exec executable="git" failonerror="false">
-			<arg line="clone --depth 1 -q ${gitReleaseTag} ${regressionRepo}" />
+			<arg line="clone --depth 1 -q ${gitReleaseTag} ${regressionRepo} ${openjdkGit}" />
 		</exec>
 		<move file="${jdkName}" tofile="openjdk-jdk"/>
 	</target>
