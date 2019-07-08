@@ -58,6 +58,7 @@
 			<arg value="-b"/>
 			<arg value="${stf_branch}"/>
 			<arg value="${stf_repo}"/>
+			<arg value="stf"/>
 		</exec>
 		<echo message="SHA of the checked out STF materials:"/>
 		<exec executable="git" failonerror="false">
@@ -98,6 +99,7 @@
 			<arg value="-b"/>
 			<arg value="${openjdk_systemtest_branch}"/>
 			<arg value="${openjdk_systemtest_repo}"/>
+			<arg value="openjdk-systemtest"/>
 		</exec>
 		<echo message="SHA of the checked out openjdk-systemtest materials:"/>
 		<exec executable="git" failonerror="false">
