@@ -204,7 +204,9 @@ getBinaryOpenjdk()
 	for jar_dir in "${jar_dir_array[@]}"
 		do
 			jar_dir_name=${jar_dir%?}
-			if [[ "$jar_dir_name" =~ jre*  &&  "$jar_dir_name" != "j2re-image" ]]; then
+			if [[ "$jar_dir_name" =~ "test-image" && "$jar_dir_name" != "openjdk-test-image" ]]; then
+				mv $jar_dir_name openjdk-test-image
+			elif [[ "$jar_dir_name" =~ jre*  &&  "$jar_dir_name" != "j2re-image" ]]; then
 				if [[ -d $jar_dir_name/Contents/Home ]]; then
 					mv "$jar_dir_name/Contents/Home" j2re-image
 				else
@@ -265,8 +267,8 @@ getTestKitGenAndFunctionalTestMaterial()
 		echo "update to openj9 sha: $OPENJ9_SHA"
 		cd openj9
 		git fetch --unshallow
-		git fetch -q --tags $OPENJ9_REPO +refs/pull/*:refs/remotes/origin/pr/*
-		git checkout -q $OPENJ9_SHA
+		git fetch --tags $OPENJ9_REPO +refs/pull/*:refs/remotes/origin/pr/*
+		git checkout $OPENJ9_SHA
 		cd $TESTDIR
 	fi
 
@@ -277,6 +279,9 @@ getTestKitGenAndFunctionalTestMaterial()
     else
 	    mv openj9/test/functional functional
     fi
+	echo "call checkTestRepoSHAs" 
+	checkTestRepoSHAs
+
 	rm -rf openj9
 
 	if [ "$VENDOR_REPOS" != "" ]; then
@@ -356,15 +361,30 @@ else
 fi
 }
 
+checkTestRepoSHAs()
+{
+output_file="$TESTDIR/TestConfig/SHA.txt"
+if [ -e ${output_file} ]; then
+	echo "rm $output_file"
+	rm ${output_file}
+fi
+
+echo "$TESTDIR/TestConfig/scripts/getSHA.sh --repo_dir $TESTDIR --output_file $output_file"
+$TESTDIR/TestConfig/scripts/getSHA.sh --repo_dir $TESTDIR --output_file $output_file
+
+echo "$TESTDIR/TestConfig/scripts/getSHA.sh --repo_dir $TESTDIR/openj9 --output_file $output_file"
+$TESTDIR/TestConfig/scripts/getSHA.sh --repo_dir $TESTDIR/openj9 --output_file $output_file
+}
+
 parseCommandLineArgs "$@"
 if [[ "$SDKDIR" != "" ]]; then
 	getBinaryOpenjdk
+	testJavaVersion
 fi
 if [ "$SDK_RESOURCE" == "customized" ] && [ "$CUSTOMIZED_SDK_SOURCE_URL" != "" ]; then
 	getOpenJDKSources
 fi
 
-testJavaVersion
 
 if [ ! -d "$TESTDIR/TestConfig" ]; then
 	getTestKitGenAndFunctionalTestMaterial

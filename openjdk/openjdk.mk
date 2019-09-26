@@ -20,6 +20,9 @@ endif
 ifeq ($(OS),Darwin)
 	NPROCS:=$(shell sysctl -n hw.ncpu)
 endif
+ifeq ($(OS),FreeBSD)
+	NPROCS:=$(shell sysctl -n hw.ncpu)
+endif
 ifeq ($(CYGWIN),1)
  	NPROCS:=$(NUMBER_OF_PROCESSORS)
 endif
@@ -34,7 +37,7 @@ JTREG_BASIC_OPTIONS += $(JTREG_ASSERT_OPTION)
 # Report details on all failed or error tests, times, and suppress output for tests that passed
 JTREG_BASIC_OPTIONS += -v:fail,error,time,nopass
 # Retain all files for failing tests
-JTREG_BASIC_OPTIONS += -retain:fail,error
+JTREG_BASIC_OPTIONS += -retain:fail,error,*.dmp,javacore.*,heapdump.*,*.trc
 # Ignore tests are not run and completely silent about it
 JTREG_IGNORE_OPTION = -ignore:quiet
 JTREG_BASIC_OPTIONS += $(JTREG_IGNORE_OPTION)
@@ -48,11 +51,7 @@ JTREG_BASIC_OPTIONS += $(JTREG_XML_OPTION)
 JTREG_BASIC_OPTIONS += $(EXTRA_JTREG_OPTIONS)
 
 ifndef JRE_IMAGE
-	ifeq ($(JDK_VERSION),8)
-		JRE_ROOT := $(JAVA_BIN)$(D)..$(D)..
-	else
-		JRE_ROOT := $(JAVA_BIN)$(D)..
-	endif
+	JRE_ROOT := $(TEST_JDK_HOME)
 	JRE_IMAGE := $(JRE_ROOT)$(D)..$(D)j2re-image
 endif
 
@@ -64,14 +63,30 @@ OPENJDK_DIR := $(TEST_ROOT)$(D)openjdk$(D)openjdk-jdk
 endif
 
 ifneq (,$(findstring $(JDK_VERSION),8-9))
-	JTREG_TEST_DIR := $(OPENJDK_DIR)$(D)jdk$(D)test
+	JTREG_JDK_TEST_DIR := $(OPENJDK_DIR)$(D)jdk$(D)test
 	JTREG_HOTSPOT_TEST_DIR := $(OPENJDK_DIR)$(D)hotspot$(D)test
 	JTREG_LANGTOOLS_TEST_DIR := $(OPENJDK_DIR)$(D)langtools$(D)test
+	JDK_CUSTOM_TARGET ?= jdk/test/java/math/BigInteger/BigIntegerTest.java
 else
-	JTREG_TEST_DIR := $(OPENJDK_DIR)$(D)test$(D)jdk
+	JTREG_JDK_TEST_DIR := $(OPENJDK_DIR)$(D)test$(D)jdk
 	JTREG_HOTSPOT_TEST_DIR := $(OPENJDK_DIR)$(D)test$(D)hotspot$(D)jtreg
 	JTREG_LANGTOOLS_TEST_DIR := $(OPENJDK_DIR)$(D)test$(D)langtools
+	JDK_CUSTOM_TARGET ?= test/jdk/java/math/BigInteger/BigIntegerTest.java
 endif
 
-JDK_CUSTOM_TARGET ?= java/math/BigInteger/BigIntegerTest.java
-LANGTOOLS_CUSTOM_TARGET ?= tools/javac/declaration/method/MethodVoidParameter.java
+JDK_NATIVE_OPTIONS :=
+JVM_NATIVE_OPTIONS :=
+CUSTOM_NATIVE_OPTIONS :=
+ifdef TESTIMAGE_PATH
+	JDK_NATIVE_OPTIONS := -nativepath:"$(TESTIMAGE_PATH)$(D)jdk$(D)jtreg$(D)native"
+	ifeq ($(JDK_IMPL), hotspot)
+		JVM_NATIVE_OPTIONS := -nativepath:"$(TESTIMAGE_PATH)$(D)hotspot$(D)jtreg$(D)native"
+	else ifeq ($(JDK_IMPL), openj9)
+		JVM_NATIVE_OPTIONS := -nativepath:"$(TESTIMAGE_PATH)$(D)openj9"
+	endif
+	ifneq (,$(findstring /hotspot/, $(JDK_CUSTOM_TARGET))) 
+		CUSTOM_NATIVE_OPTIONS := $(JVM_NATIVE_OPTIONS)
+	else
+		CUSTOM_NATIVE_OPTIONS := $(JDK_NATIVE_OPTIONS)
+	endif
+endif

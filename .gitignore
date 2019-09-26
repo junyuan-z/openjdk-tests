@@ -3,7 +3,7 @@
 
 # misc auto generated folders
 bin
-!performance/liberty/scripts/bin
+!perf/liberty/scripts/bin
 test_output_*
 
 # misc auto generated files
@@ -11,10 +11,13 @@ autoGen.mk
 
 TestConfig
 functional
+!functional/SyntheticGCWorkload
 !functional/MBCS_Tests
+
 Utils
 systemtest_prereqs/*
 openjdk/*.gz
 .DS_Store
-.classpath
-.project
+
+/.classpath
+/.project
