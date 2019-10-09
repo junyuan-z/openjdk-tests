@@ -22,24 +22,6 @@ def makeTest(testParam) {
 }
 
 def setupEnv() {
-	// if the provided ADOPTOPENJDK_REPO and ADOPTOPENJDK_BRANCH are not AdoptOpenJDK/openjdk-tests' master branch, clean the workspace and re-download it
-	if (params.ADOPTOPENJDK_REPO && params.ADOPTOPENJDK_BRANCH) {
-		if ( !params.ADOPTOPENJDK_REPO.contains( 'AdoptOpenJDK/openjdk-tests.git') || params.ADOPTOPENJDK_BRANCH != "master") {
-			cleanWs()
-
-			def remoteConfigParameters = [url: "${params.ADOPTOPENJDK_REPO}"]
-			if (params.ADOPTOPENJDK_REPO.startsWith('git') && params.USER_CREDENTIALS_ID && !SPEC.startsWith('zos')) {
-				remoteConfigParameters.put('credentialsId', "${params.USER_CREDENTIALS_ID}")
-			}
-
-			checkout([
-				$class: 'GitSCM', branches: [[name: "*/${params.ADOPTOPENJDK_BRANCH}"]],
-				extensions: [[$class:'CloneOption', shallow:true, depth:1],[$class: 'CleanBeforeCheckout'],[$class: 'RelativeTargetDirectory', relativeTargetDir: 'openjdk-tests']],
-				userRemoteConfigs: [remoteConfigParameters]
-			])
-		}
-	}
-
 	if ( params.JDK_VERSION ) {
 		env.ORIGIN_JDK_VERSION = params.JDK_VERSION
 		env.JDK_VERSION = params.JDK_VERSION.equalsIgnoreCase("next") ? "" : params.JDK_VERSION
@@ -53,7 +35,6 @@ def setupEnv() {
 	CUSTOM_TARGET = params.CUSTOM_TARGET ? params.CUSTOM_TARGET : ""
 	UPSTREAM_JOB_NAME = params.UPSTREAM_JOB_NAME ? params.UPSTREAM_JOB_NAME : ""
 	UPSTREAM_JOB_NUMBER = params.UPSTREAM_JOB_NUMBER ? params.UPSTREAM_JOB_NUMBER : ""
-	JCK_GIT_REPO = params.JCK_GIT_REPO ? params.JCK_GIT_REPO : ""
 	SSH_AGENT_CREDENTIAL = params.SSH_AGENT_CREDENTIAL ? params.SSH_AGENT_CREDENTIAL : ""
 	KEEP_WORKSPACE = params.KEEP_WORKSPACE ? params.KEEP_WORKSPACE : false
 	OPENJ9_SHA = params.OPENJ9_SHA ? params.OPENJ9_SHA : ""
@@ -89,26 +70,9 @@ def setupEnv() {
 		env.PERF_ROOT = "$WORKSPACE/../../benchmarks"
 	}
 
-	if (env.BUILD_LIST.startsWith("jck")) {
-		if ( JDK_VERSION == "8" ) {
-			env.JCK_VERSION = "jck8b"
-		} else {
-			env.JCK_VERSION = "jck${JDK_VERSION}"
-		}
-		if( params.JCK_ROOT ) {
-			env.JCK_ROOT = params.JCK_ROOT
-		} else {
-			env.JCK_ROOT = "$WORKSPACE/../../jck_root/JCK${JDK_VERSION}-unzipped"
-		}
-		
-		echo "env.JCK_ROOT is: ${env.JCK_ROOT}, env.JCK_VERSION is: ${env.JCK_VERSION}"
-		if( params.JCK_GIT_REPO ) {
-			env.JCK_GIT_REPO = params.JCK_GIT_REPO
-			echo "env.JCK_GIT_REPO is ${env.JCK_GIT_REPO}"
-		} else {
-			echo "params.JCK_GIT_REPO was not defined"
-		}
-	}
+	env.JCK_VERSION = params.JCK_VERSION ? params.JCK_VERSION : ""
+	env.JCK_ROOT = params.JCK_ROOT ? params.JCK_ROOT : ""
+	env.JCK_GIT_REPO = params.JCK_GIT_REPO ? params.JCK_GIT_REPO : ""
 
 	if (env.BUILD_LIST == 'openjdk' ||  env.BUILD_LIST.contains('external')) {
 		env.DIAGNOSTICLEVEL ='noDetails'
@@ -459,6 +423,8 @@ def post(output_name) {
 			junit allowEmptyResults: true, keepLongStdio: true, testResults: '**/work/**/*.jtr.xml, **/junitreports/**/*.xml, **/external_test_reports/**/*.xml'
 			archiveSHAFile()
 
+			addGrinderLink()
+
 			if (currentBuild.result == 'UNSTABLE' || params.ARCHIVE_TEST_RESULTS) {
 				def test_output_tar_name = "${output_name}_test_output${suffix}"
 				sh "${tar_cmd} ${test_output_tar_name} ${pax_opt} ./openjdk-tests/TestConfig/test_output_*"
@@ -470,8 +436,6 @@ def post(output_name) {
 					def pattern = "${env.WORKSPACE}/*_test_output.*"
 					uploadToArtifactory(pattern)
 				}
-
-				addGrinderLink()
 			}
 			//for performance test, archive regardless the build result
 			if (env.BUILD_LIST.startsWith('perf')) {
@@ -610,6 +574,8 @@ def addGrinderLink() {
 	def	sdkSourceOpt = params.SDK_RESOURCE ? "&SDK_RESOURCE=${params.SDK_RESOURCE}" :  ""
 	def	sdkUrlOpt = params.CUSTOMIZED_SDK_URL ? "&CUSTOMIZED_SDK_URL=${params.CUSTOMIZED_SDK_URL}" : ""
 	def	sdkUrlCredentialOpt = params.CUSTOMIZED_SDK_URL_CREDENTIAL_ID ? "&CUSTOMIZED_SDK_URL_CREDENTIAL_ID=${params.CUSTOMIZED_SDK_URL_CREDENTIAL_ID}" : ""
+	def	upstreamJobNameOpt = params.UPSTREAM_JOB_NAME ? "&UPSTREAM_JOB_NAME=${params.UPSTREAM_JOB_NAME}" : ""
+	def	upstreamJobNumOpt = params.UPSTREAM_JOB_NUMBER ? "&UPSTREAM_JOB_NUMBER=${params.UPSTREAM_JOB_NUMBER}" : ""
 
 	def url = "${HUDSON_URL}/job/Grinder/parambuild/?" \
 	+ "JDK_VERSION=${params.JDK_VERSION}" \
@@ -617,7 +583,10 @@ def addGrinderLink() {
 	+ "&BUILD_LIST=${params.BUILD_LIST}" \
 	+ "&JenkinsFile=${params.JenkinsFile}" \
 	+ "&TARGET=${params.TARGET}" \
-	+ "${sdkSourceOpt}${sdkUrlOpt}${sdkUrlCredentialOpt}${customTargetOpt}"
+	+ "${sdkSourceOpt}${sdkUrlOpt}${sdkUrlCredentialOpt}${customTargetOpt}${upstreamJobNameOpt}${upstreamJobNumOpt}"
+
+	url = url.replace(" ", "%20")
+
 	currentBuild.description += "<br><a href=${url}>Rerun in Grinder</a> TARGET can be changed to run only the failed test target"
 }
 

@@ -30,7 +30,7 @@ java/lang/Class/GetModuleTest.java	https://github.com/eclipse/openj9/issues/3040
 java/lang/Class/GetPackageBootLoaderChildLayer.java	https://github.com/eclipse/openj9/issues/5274	x86-64_windows
 #java/lang/Class/GetPackageBootLoaderChildLayer.java is also excluded for the issue https://github.com/AdoptOpenJDK/openjdk-tests/issues/1267
 java/lang/Class/forName/NonJavaNames.sh	https://github.com/eclipse/openj9/issues/5225	generic-all
-java/lang/ClassLoader/Assert.java https://github.com/eclipse/openj9/issues/6668 macosx-all
+java/lang/ClassLoader/Assert.java 	https://github.com/eclipse/openj9/issues/6668 	macosx-x64
 java/lang/ClassLoader/EndorsedDirs.java	https://github.com/eclipse/openj9/issues/3055	generic-all
 java/lang/ClassLoader/ExtDirs.java	https://github.com/eclipse/openj9/issues/3055	generic-all
 java/lang/ClassLoader/LibraryPathProperty.java	https://github.ibm.com/runtimes/openjdk-contribution/issues/606	generic-all
@@ -54,8 +54,6 @@ java/lang/String/CompactString/IndexOf.java	https://github.com/eclipse/openj9/is
 java/lang/String/EqualsIgnoreCase.java	https://github.com/eclipse/openj9/issues/6666	generic-all
 java/lang/String/StringRepeat.java	https://github.com/eclipse/openj9/issues/6667	generic-all
 java/lang/String/nativeEncoding/StringPlatformChars.java	https://github.com/AdoptOpenJDK/openjdk-build/issues/248	generic-all
-java/lang/StringBuffer/CompactStringBuffer.java https://github.com/eclipse/openj9/issues/6671 linux-s390x
-java/lang/StringBuilder/CompactStringBuilder.java https://github.com/eclipse/openj9/issues/6671 linux-s390x
 java/lang/System/Logger/custom/CustomLoggerTest.java	https://github.com/eclipse/openj9/issues/6674	generic-all
 java/lang/System/Logger/default/DefaultLoggerTest.java	https://github.com/eclipse/openj9/issues/6674	generic-all
 java/lang/System/LoggerFinder/BaseLoggerFinderTest/BaseLoggerFinderTest.java	https://github.com/eclipse/openj9/issues/6674	generic-all
@@ -83,7 +81,6 @@ java/lang/invoke/DefineClassTest.java		https://github.com/eclipse/openj9/issues/
 java/lang/invoke/DropLookupModeTest.java	https://github.com/eclipse/openj9/issues/6802	generic-all
 java/lang/invoke/ExplicitCastArgumentsTest.java		https://github.com/eclipse/openj9/issues/6856	generic-all
 java/lang/invoke/FindAccessTest.java		https://github.com/eclipse/openj9/issues/6868	generic-all
-java/lang/invoke/InvokeMethodHandleWithBadArgument.java	https://github.com/eclipse/openj9/issues/6943	generic-all
 java/lang/invoke/InvokeWithArgumentsTest.java	https://github.com/eclipse/openj9/issues/6964	generic-all
 java/lang/invoke/LFCaching/LFMultiThreadCachingTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/1297	generic-all
 java/lang/invoke/LFCaching/LFSingleThreadCachingTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/1297	generic-all
@@ -108,16 +105,16 @@ java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessInt.java	https://gith
 java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessLong.java	https://github.com/eclipse/openj9/issues/3940	generic-all
 java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessShort.java	https://github.com/eclipse/openj9/issues/3940	generic-all
 java/lang/invoke/VarHandles/VarHandleTestMethodHandleAccessString.java	https://github.com/eclipse/openj9/issues/3940	generic-all
-java/lang/invoke/VarHandles/VarHandleTestReflection.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
+java/lang/invoke/VarHandles/VarHandleTestReflection.java	https://github.com/eclipse/openj9/issues/7172	generic-all
 java/lang/invoke/VarHandles/accessibility/TestFieldLookupAccessibility.java	https://github.com/eclipse/openj9/issues/3175	generic-all
-java/lang/invoke/VarargsArrayTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
+java/lang/invoke/VarargsArrayTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/1297	generic-all
 java/lang/invoke/condy/CondyNestedTest.java https://github.com/eclipse/openj9/issues/4127 linux-ppc64le
 java/lang/invoke/lambda/LambdaStackTrace.java	https://github.com/eclipse/openj9/issues/3394	generic-all
 java/lang/module/ModuleFinderTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/749	windows-all
-java/lang/ref/CleanerTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
-java/lang/ref/EarlyTimeout.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
-java/lang/ref/FinalizerHistogramTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
-java/lang/ref/NullQueue.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
+java/lang/ref/CleanerTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/1297	generic-all
+java/lang/ref/EarlyTimeout.java	https://github.com/eclipse/openj9/issues/7225	generic-all
+java/lang/ref/FinalizerHistogramTest.java	https://github.com/eclipse/openj9/issues/7226	generic-all
+java/lang/ref/NullQueue.java	https://github.com/eclipse/openj9/issues/7251	generic-all
 java/lang/ref/OOMEInReferenceHandler.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
 java/lang/ref/ReachabilityFenceTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
 java/lang/reflect/AccessibleObject/CanAccessTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
@@ -167,7 +164,7 @@ java/net/HttpURLConnection/SetAuthenticator/HTTPSetAuthenticatorTest.java https:
 java/net/InetAddress/BadDottedIPAddress.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
 java/net/InetAddress/CachedUnknownHostName.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
 java/net/InetAddress/IPv4Formats.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
-java/net/Inet6Address/B6206527.java https://github.com/AdoptOpenJDK/openjdk-infrastructure/issues/694 linux-all
+java/net/Inet6Address/B6206527.java https://github.com/AdoptOpenJDK/openjdk-infrastructure/issues/694 linux-all,macosx-all
 java/net/MulticastSocket/Promiscuous.java https://github.com/AdoptOpenJDK/openjdk-infrastructure/issues/699 linux-s390x
 java/net/MulticastSocket/SetLoopbackMode.java https://github.com/AdoptOpenJDK/openjdk-infrastructure/issues/699 linux-s390x
 java/net/MulticastSocket/Test.java https://github.com/AdoptOpenJDK/openjdk-infrastructure/issues/699 linux-s390x
@@ -193,7 +190,7 @@ java/net/httpclient/websocket/PendingPongBinaryClose.java https://github.com/ecl
 java/net/httpclient/websocket/PendingPongTextClose.java https://github.com/eclipse/openj9/issues/4298 macosx-all
 java/net/httpclient/websocket/PendingTextPingClose.java https://github.com/eclipse/openj9/issues/4298 macosx-all
 java/net/httpclient/websocket/PendingTextPongClose.java https://github.com/eclipse/openj9/issues/4298 macosx-all
-java/net/ipv6tests/B6521014.java https://github.com/AdoptOpenJDK/openjdk-infrastructure/issues/694 linux-all
+java/net/ipv6tests/B6521014.java https://github.com/AdoptOpenJDK/openjdk-infrastructure/issues/694 linux-all,macosx-all
 com/sun/net/httpserver/bugs/B6361557.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/1272	windows-all
 
 ############################################################################
@@ -306,16 +303,16 @@ java/util/stream/test/org/openjdk/tests/java/util/stream/ToArrayOpTest.java	http
 
 # jdk_other
 
-jdk/internal/misc/TerminatingThreadLocal/TestTerminatingThreadLocal.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
-jdk/internal/misc/VM/GetNanoTimeAdjustment.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
-jdk/internal/misc/VM/RuntimeArguments.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
-jdk/internal/reflect/CallerSensitive/CheckCSMs.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
-jdk/internal/reflect/constantPool/ConstantPoolTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
+jdk/internal/misc/TerminatingThreadLocal/TestTerminatingThreadLocal.java	https://github.com/eclipse/openj9/issues/7167	generic-all
+jdk/internal/misc/VM/GetNanoTimeAdjustment.java		https://github.com/eclipse/openj9/issues/7184		generic-all
+jdk/internal/misc/VM/RuntimeArguments.java		https://github.com/eclipse/openj9/issues/7186		generic-all
+jdk/internal/reflect/CallerSensitive/CheckCSMs.java	https://github.com/eclipse/openj9/issues/7245		generic-all
+jdk/internal/reflect/constantPool/ConstantPoolTest.java	https://github.com/eclipse/openj9/issues/7249		generic-all
 
-sun/misc/SunMiscSignalTest.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
+sun/misc/SunMiscSignalTest.java		https://github.com/eclipse/openj9/issues/7264		generic-all
 sun/net/www/protocol/file/DirPermissionDenied.java https://github.com/AdoptOpenJDK/openjdk-tests/issues/749 windows-all
-sun/nio/ch/TestMaxCachedBufferSize.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
+sun/nio/ch/TestMaxCachedBufferSize.java		https://github.com/eclipse/openj9/issues/5328		generic-all
 
-vm/verifier/VerifyProtectedConstructor.java	https://github.com/AdoptOpenJDK/openjdk-tests/issues/585	generic-all
+vm/verifier/VerifyProtectedConstructor.java	https://github.com/eclipse/openj9/issues/7336	generic-all
 
 ############################################################################
